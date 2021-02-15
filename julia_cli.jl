@@ -8,7 +8,10 @@ struct Command
     requiredargs::Int
     helptext::String
     action
+    takesraw::Bool
 end
+Command(n, ar, r, h, ac) = Command(n, ar, r, h, ac, false)
+RawCommand(n, ar, r, h, ac) = Command(n, ar, r, h, ac, true)
 
 mutable struct CommandList
     commands::Vector{Command}
@@ -104,7 +107,11 @@ function repl(commands::CommandList)
             end
 
             # execute command
-            cmd.action(arglist...)
+            if cmd.takesraw
+                cmd.action(arglist...; rawargs = strip(args))
+            else
+                cmd.action(arglist...)
+            end
         end
     catch e
         isa(e, InterruptException) || rethrow(e)
