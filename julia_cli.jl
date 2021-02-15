@@ -33,10 +33,16 @@ end
 
 clean(text) = lowercase(strip(text))
 
-function yesnoprompt(prompt::String)::Bool
-    print("$prompt (y/n) ")
-    response = readline()
-    return clean(response) == "y"
+function yesnoprompt(prompt::String; force::Bool=false)::Bool
+    while true
+        print("$prompt (y/n) ")
+        response = clean(readline())
+        if response in ["y", "yes"]
+            return true
+        elseif response in ["n", "no"] || !force
+            return false
+        end
+    end
 end
 
 function parsevalidate(command::Command, input::String)::Vector{Union{String,Int}}

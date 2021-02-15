@@ -2,16 +2,51 @@ include("julia_cli.jl"); using .
 CLI
 
 mutable struct Bomb
-    memodict::Dict{String,Union{String,Int}}
+    memodict::Dict{String,Any}
 end
 Bomb() = Bomb(Dict())
 
-function Base.getindex(bomb::Bomb, question::String)::String
-    question ∉ bomb.memodict && (bomb.memodict[question] = readline(question))
+abstract type AbstractQuestion end
+
+struct StringQuestion <: AbstractQuestion
+    question::String
+end
+
+struct BooleanQuestion <: AbstractQuestion
+    question::String
+end
+
+struct IntegerQuestion <: AbstractQuestion
+    question::String
+end
+
+function Base.getindex(bomb::Bomb, question::AbstractQuestion)
+    value = undef
+    if isa(question, StringQuestion)
+        print("$(question.question)? ")
+        value = clean(readline())
+    elseif isa(question, BooleanQuestion)
+        value = yesnoprompt("$(question.question)?"; force=true)
+    elseif isa(question, IntegerQuestion)
+        while true
+            print("$(question.question)? ")
+            try
+                value = parse(Int, strip(readline()))
+                break
+            catch e
+                if isa(e, ArgumentError)
+                    println("Please give an integer.")
+                else
+                    rethrow(e)
+                end
+            end
+        end
+    end
+    question ∉ bomb.memodict && (bomb.memodict[question] = value)
     bomb.memodict[question]
 end
 
-function Base.setindex!(bomb::Bomb, question::String, value::Union{String,Int})
+function Base.setindex!(bomb::Bomb, question::String, value)
     bomb.memodict[question] = value
 end
 
@@ -27,6 +62,12 @@ Expert Bot 9000 v$version
 """
 
 bomb = Bomb()
+qcodes = Dict(
+    "serial_vowel" => BooleanQuestion("Serial number contains a vowel"),
+    "serial_odd" => BooleanQuestion("Serial number ends with an odd digit"),
+    "serial" => StringQuestion("Serial number"),
+    "batt_count" => IntegerQuestion("Number of batteries")
+)
 
 ktane_commandlist = CommandList([
     Command(
@@ -91,6 +132,65 @@ ktane_commandlist = CommandList([
                 println("Goodbye.")
                 ktane_commandlist.shouldexit = true 
             end
+        end
+    ),
+    Command(
+        ["wires"],
+        [String],
+        1,
+        """Solves the basic wires module.
+        Usage: wires <sequence>
+
+        Provide a sequence of characters corresponding to the color and number of wires in the module, according to this pattern:
+
+        R - Red
+        G - Green
+        B - Blue
+        Y - Yellow
+        W - White
+        K - Black
+
+        Examples:
+
+        One red wire, two yellow wires: `wires RYY`
+        Two black wires, one yellow, one red, and one blue: `wires KKYRB`""",
+        function(sequence)
+            # check validity of passed sequence
+            if length(sequence) ∉ 3:6
+                println("Wires come in bunches of 3-6, you gave a sequence of $(length(sequences)) wires.")
+                return
+            end
+
+            if any(l ∉ ['r', 'g', 'b', 'y', 'w', 'k'] for l in sequence)
+                println("Wire sequences can only consist of the letters R, G, B, Y, W, and K.")
+                return
+            end
+
+            # solve module
+            tocut = undef
+            if length(sequence) == 3
+                if 'r' ∉ sequence
+                    tocut = 2
+                elseif sequence[end] == 'w'
+                    tocut = 3
+                elseif count(w -> w == 'b', sequence) > 1
+                    tocut = findlast(map(l -> l == 'b', sequence))
+                else
+                    tocut = 3
+                end
+            elseif length(sequence) == 4
+                if count(w -> w == 'r', sequence) > 1 && bomb[qcodes["serial_odd"]]
+                    tocut = 4
+                elseif sequence[end] == 'y' && all(w -> w != r, sequence)
+                    tocut = 1
+                elseif count(w -> w == 'b', sequence) == 1
+                    tocut = 1
+                elseif count(w -> w == 'y', sequence) > 1
+                    tocut = 4
+                else
+                    tocut = 2
+                end
+            elseif 
         end
     )
 ])
