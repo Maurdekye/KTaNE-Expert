@@ -1,5 +1,4 @@
-include("julia_cli.jl"); using .
-CLI
+include("julia_cli.jl"); using .CLI
 
 mutable struct Bomb
     memodict::Dict{String,Any}
@@ -190,7 +189,9 @@ ktane_commandlist = CommandList([
                 else
                     tocut = 2
                 end
-            elseif 
+            end
+
+            println(tocut)
         end
     )
 ])
