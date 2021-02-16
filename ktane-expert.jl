@@ -58,6 +58,9 @@ Base.in(question::String, bomb::Bomb) = question in bomb.memodict
 
 Base.count(c::Char, s::String) = count(isequal(c), s)
 
+indexof(array) = value -> findfirst(isequal(value), array)
+indexof(array, value) = indexof(array)(value)
+
 version = "1.0.0"
 
 introtext = """Keep Talking and Nobody Explodes
@@ -353,7 +356,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             end
 
             right_col = symbol_columns[right_col_ind]
-            correct_order = sort(given, by=(s -> findfirst(isequal(s), right_col)))
+            correct_order = sort(given, by=indexof(right_col))
 
             println("The correct order to push the buttons in is $(correct_order[1]), $(correct_order[2]),$(correct_order[3]), and $(correct_order[4]).")
         end
@@ -412,7 +415,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 'Y' => "Yellow"
             )
 
-            indicies = map(s -> findfirst(isequal(s), header), collect(sequence))
+            indicies = map(indexof(header), collect(sequence))
             translation = translation_table[bomb[qcodes["strikes"]]+1][indicies]
             solution_response = map(c -> names[c], translation)
 
@@ -428,8 +431,8 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         
         Examples:
         
-        Module has the word 'BLANK' shown: `whosonfirst BLANK`
-        Module has no word shown: `whosonfirst `""",
+        Module display has the word 'BLANK' shown: `whosonfirst BLANK`
+        Module display has no word shown: `whosonfirst `""",
         function(args...; rawargs=nothing)
             word = rawargs === nothing ? "" : uppercase(rawargs)
 
@@ -480,35 +483,35 @@ Make sure to record strikes you recieve with the `strike` command; some solution
 
             location = display_words[word]
 
-            step_2_words = Dict(
-                "YOU"     => [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28],
-                "PRESS"   => [7, 4, 1, 9, 6, 2, 13, 12, 8, 5, 11, 3, 10, 14],
-                "NOTHING" => [12, 7, 2, 4, 1, 8, 10, 6, 5, 3, 14, 11, 13, 9],
-                "DONE"    => [15, 20, 19, 23, 17, 21, 18, 22, 26, 24, 28, 16, 25, 27],
-                "WAIT"    => [12, 10, 8, 2, 1, 5, 11, 6, 3, 14, 13, 9, 7, 4],
-                "UH UH"   => [21, 28, 16, 18, 19, 25, 27, 24, 20, 26, 17, 15, 22, 23],
-                "LIKE"    => [18, 19, 28, 21, 22, 27, 25, 23, 20, 24, 26, 15, 16, 17],
-                "WHAT"    => [12, 3, 5, 13, 9, 8, 4, 10, 2, 11, 14, 1, 6, 7],
-                "NEXT"    => [23, 20, 25, 17, 22, 15, 19, 26, 27, 16, 21, 18, 28, 24],
-                "READY"   => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
-                "RIGHT"   => [1, 13, 9, 6, 10, 14, 3, 7, 4, 5, 12, 8, 2, 11],
-                "MIDDLE"  => [8, 9, 2, 3, 13, 6, 10, 14, 5, 4, 7, 11, 12, 1],
-                "LEFT"    => [7, 5, 11, 10, 4, 1, 8, 3, 12, 14, 6, 9, 2, 13],
-                "UH HUH"  => [20, 17, 16, 24, 27, 22, 25, 19, 15, 26, 18, 21, 28, 23],
-                "NO"      => [8, 12, 14, 11, 3, 9, 7, 1, 13, 5, 6, 2, 10, 4],
-                "HOLD"    => [16, 28, 27, 25, 24, 21, 15, 23, 18, 19, 22, 20, 17, 26],
-                "SURE"    => [16, 27, 26, 18, 24, 22, 20, 21, 15, 28, 23, 19, 17, 25],
-                "YOU ARE" => [17, 19, 26, 20, 23, 27, 25, 22, 24, 28, 18, 15, 21, 16],
-                "FIRST"   => [5, 2, 1, 4, 10, 7, 13, 12, 14, 9, 8, 3, 6, 11],
-                "BLANK"   => [14, 7, 2, 4, 8, 6, 9, 13, 10, 3, 5, 12, 1, 11],
-                "YOUR"    => [25, 16, 20, 17, 19, 21, 15, 28, 18, 24, 23, 22, 26, 27],
-                "WHAT?"   => [24, 22, 18, 17, 28, 27, 25, 26, 16, 20, 21, 19, 23, 15],
-                "UHHH"    => [9, 13, 5, 3, 2, 1, 7, 10, 6, 8, 12, 4, 14, 11],
-                "U"       => [20, 15, 19, 23, 18, 21, 25, 27, 28, 24, 26, 22, 16, 17],
-                "YOU'RE"  => [24, 18, 21, 19, 25, 16, 28, 17, 23, 20, 15, 27, 26, 22],
-                "OKAY"    => [4, 10, 11, 1, 12, 13, 14, 2, 5, 9, 8, 6, 3, 7],
-                "UR"      => [27, 28, 21, 20, 23, 15, 17, 22, 18, 26, 19, 25, 16, 24],
-                "YES"     => [2, 7, 12, 4, 11, 3, 6, 9, 13, 1, 5, 8, 10, 14],
+            step_2_word_relations = Dict(
+                1 => [2, 7, 12, 4, 11, 3, 6, 9, 13, 1, 5, 8, 10, 14],
+                2 => [4, 10, 11, 1, 12, 13, 14, 2, 5, 9, 8, 6, 3, 7],
+                3 => [12, 3, 5, 13, 9, 8, 4, 10, 2, 11, 14, 1, 6, 7],
+                4 => [8, 9, 2, 3, 13, 6, 10, 14, 5, 4, 7, 11, 12, 1],
+                5 => [7, 5, 11, 10, 4, 1, 8, 3, 12, 14, 6, 9, 2, 13],
+                6 => [7, 4, 1, 9, 6, 2, 13, 12, 8, 5, 11, 3, 10, 14],
+                7 => [1, 13, 9, 6, 10, 14, 3, 7, 4, 5, 12, 8, 2, 11],
+                8 => [14, 7, 2, 4, 8, 6, 9, 13, 10, 3, 5, 12, 1, 11],
+                9 => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+               10 => [8, 12, 14, 11, 3, 9, 7, 1, 13, 5, 6, 2, 10, 4],
+               11 => [5, 2, 1, 4, 10, 7, 13, 12, 14, 9, 8, 3, 6, 11],
+               12 => [9, 13, 5, 3, 2, 1, 7, 10, 6, 8, 12, 4, 14, 11],
+               13 => [12, 7, 2, 4, 1, 8, 10, 6, 5, 3, 14, 11, 13, 9],
+               14 => [12, 10, 8, 2, 1, 5, 11, 6, 3, 14, 13, 9, 7, 4],
+               15 => [16, 27, 26, 18, 24, 22, 20, 21, 15, 28, 23, 19, 17, 25],
+               16 => [17, 19, 26, 20, 23, 27, 25, 22, 24, 28, 18, 15, 21, 16],
+               17 => [25, 16, 20, 17, 19, 21, 15, 28, 18, 24, 23, 22, 26, 27],
+               18 => [24, 18, 21, 19, 25, 16, 28, 17, 23, 20, 15, 27, 26, 22],
+               19 => [23, 20, 25, 17, 22, 15, 19, 26, 27, 16, 21, 18, 28, 24],
+               20 => [20, 17, 16, 24, 27, 22, 25, 19, 15, 26, 18, 21, 28, 23],
+               21 => [27, 28, 21, 20, 23, 15, 17, 22, 18, 26, 19, 25, 16, 24],
+               22 => [16, 28, 27, 25, 24, 21, 15, 23, 18, 19, 22, 20, 17, 26],
+               23 => [24, 22, 18, 17, 28, 27, 25, 26, 16, 20, 21, 19, 23, 15],
+               24 => [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28],
+               25 => [21, 28, 16, 18, 19, 25, 27, 24, 20, 26, 17, 15, 22, 23],
+               26 => [18, 19, 28, 21, 22, 27, 25, 23, 20, 24, 26, 15, 16, 17],
+               27 => [15, 20, 19, 23, 17, 21, 18, 22, 26, 24, 28, 16, 25, 27],
+               28 => [20, 15, 19, 23, 18, 21, 25, 27, 28, 24, 26, 22, 16, 17],
             )
 
             step_2_wordlist = [
@@ -542,9 +545,9 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 "U",               
             ]
 
-            button_word = uppercase(textprompt("What is the word on the $(location_names[location]) button?"; choices = lowercase.(keys(step_2_words))))
+            button_word = uppercase(textprompt("What is the word on the $(location_names[location]) button?"; choices = lowercase.(step_2_wordlist)))
             
-            for step_2_word_index in cycle(step_2_words[button_word])
+            for step_2_word_index in cycle(step_2_word_relations[indexof(step_2_wordlist, button_word)])
                 step_2_word = step_2_wordlist[step_2_word_index]
                 print("Is there a button with the word '$step_2_word' on it? (leave blank for no) ")
                 response = clean(readline())
