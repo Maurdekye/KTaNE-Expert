@@ -1,6 +1,6 @@
 module CLI
 
-export Command, CommandList, repl, yesnoprompt, textprompt, findcommand, helptext
+export Command, RawCommand, CommandList, repl, yesnoprompt, textprompt, findcommand, helptext, clean
 
 struct Command
     names::Vector{String}
