@@ -110,7 +110,7 @@ function parsevalidate(command::Command, input::String)::Vector{Union{String,Int
     finallist = Vector{Union{String,Int}}()
     if length(inputlist) < command.requiredargs
         throw(CommandException("Not enough arguments provided; need at least $(command.requiredargs), you gave $(length(inputlist))"))
-    elseif length(inputlist) > length(command.arglist)
+    elseif length(inputlist) > length(command.arglist) && !command.takesraw
         throw(CommandException("Too many arguments! need $(length(command.arglist)), but you gave $(length(inputlist))"))
     else
         for (i, (arg, type)) in enumerate(zip(inputlist, command.arglist))

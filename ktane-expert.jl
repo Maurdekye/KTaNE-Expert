@@ -100,11 +100,11 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         end
     ),
     Command(
-        ["memory", "memo"],
+        ["bomb"],
         [],
         0,
         """Print out information stored in the program's memory about the bomb.
-        Usage: memory""",
+        Usage: bomb""",
         function()
             println("Bomb memory:")
             
@@ -481,45 +481,108 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             location = display_words[word]
 
             step_2_words = Dict(
-                "READY"   => ["YES", "OKAY", "WHAT", "MIDDLE", "LEFT", "PRESS", "RIGHT", "BLANK", "READY", "NO", "FIRST", "UHHH", "NOTHING", "WAIT"],
-                "FIRST"   => ["LEFT", "OKAY", "YES", "MIDDLE", "NO", "RIGHT", "NOTHING", "UHHH", "WAIT", "READY", "BLANK", "WHAT", "PRESS", "FIRST"],
-                "NO"      => ["BLANK", "UHHH", "WAIT", "FIRST", "WHAT", "READY", "RIGHT", "YES", "NOTHING", "LEFT", "PRESS", "OKAY", "NO", "MIDDLE"],
-                "BLANK"   => ["WAIT", "RIGHT", "OKAY", "MIDDLE", "BLANK", "PRESS", "READY", "NOTHING", "NO", "WHAT", "LEFT", "UHHH", "YES", "FIRST"],
-                "NOTHING" => ["UHHH", "RIGHT", "OKAY", "MIDDLE", "YES", "BLANK", "NO", "PRESS", "LEFT", "WHAT", "WAIT", "FIRST", "NOTHING", "READY"],
-                "YES"     => ["OKAY", "RIGHT", "UHHH", "MIDDLE", "FIRST", "WHAT", "PRESS", "READY", "NOTHING", "YES", "LEFT", "BLANK", "NO", "WAIT"],
-                "WHAT"    => ["UHHH", "WHAT", "LEFT", "NOTHING", "READY", "BLANK", "MIDDLE", "NO", "OKAY", "FIRST", "WAIT", "YES", "PRESS", "RIGHT"],
-                "UHHH"    => ["READY", "NOTHING", "LEFT", "WHAT", "OKAY", "YES", "RIGHT", "NO", "PRESS", "BLANK", "UHHH", "MIDDLE", "WAIT", "FIRST"],
-                "LEFT"    => ["RIGHT", "LEFT", "FIRST", "NO", "MIDDLE", "YES", "BLANK", "WHAT", "UHHH", "WAIT", "PRESS", "READY", "OKAY", "NOTHING"],
-                "RIGHT"   => ["YES", "NOTHING", "READY", "PRESS", "NO", "WAIT", "WHAT", "RIGHT", "MIDDLE", "LEFT", "UHHH", "BLANK", "OKAY", "FIRST"],
-                "MIDDLE"  => ["BLANK", "READY", "OKAY", "WHAT", "NOTHING", "PRESS", "NO", "WAIT", "LEFT", "MIDDLE", "RIGHT", "FIRST", "UHHH", "YES"],
-                "OKAY"    => ["MIDDLE", "NO", "FIRST", "YES", "UHHH", "NOTHING", "WAIT", "OKAY", "LEFT", "READY", "BLANK", "PRESS", "WHAT", "RIGHT"],
-                "WAIT"    => ["UHHH", "NO", "BLANK", "OKAY", "YES", "LEFT", "FIRST", "PRESS", "WHAT", "WAIT", "NOTHING", "READY", "RIGHT", "MIDDLE"],
-                "PRESS"   => ["RIGHT", "MIDDLE", "YES", "READY", "PRESS", "OKAY", "NOTHING", "UHHH", "BLANK", "LEFT", "FIRST", "WHAT", "NO", "WAIT"],
-                "YOU"     => ["SURE", "YOU ARE", "YOUR", "YOU'RE", "NEXT", "UH HUH", "UR", "HOLD", "WHAT?", "YOU", "UH UH", "LIKE", "DONE", "U"],
-                "YOU ARE" => ["YOUR", "NEXT", "LIKE", "UH HUH", "WHAT?", "DONE", "UH UH", "HOLD", "YOU", "U", "YOU'RE", "SURE", "UR", "YOU ARE"],
-                "YOUR"    => ["UH UH", "YOU ARE", "UH HUH", "YOUR", "NEXT", "UR", "SURE", "U", "YOU'RE", "YOU", "WHAT?", "HOLD", "LIKE", "DONE"],
-                "YOU'RE"  => ["YOU", "YOU'RE", "UR", "NEXT", "UH UH", "YOU ARE", "U", "YOUR", "WHAT?", "UH HUH", "SURE", "DONE", "LIKE", "HOLD"],
-                "UR"      => ["DONE", "U", "UR", "UH HUH", "WHAT?", "SURE", "YOUR", "HOLD", "YOU'RE", "LIKE", "NEXT", "UH UH", "YOU ARE", "YOU"],
-                "U"       => ["UH HUH", "SURE", "NEXT", "WHAT?", "YOU'RE", "UR", "UH UH", "DONE", "U", "YOU", "LIKE", "HOLD", "YOU ARE", "YOUR"],
-                "UH HUH"  => ["UH HUH", "YOUR", "YOU ARE", "YOU", "DONE", "HOLD", "UH UH", "NEXT", "SURE", "LIKE", "YOU'RE", "UR", "U", "WHAT?"],
-                "UH UH"   => ["UR", "U", "YOU ARE", "YOU'RE", "NEXT", "UH UH", "DONE", "YOU", "UH HUH", "LIKE", "YOUR", "SURE", "HOLD", "WHAT?"],
-                "WHAT?"   => ["YOU", "HOLD", "YOU'RE", "YOUR", "U", "DONE", "UH UH", "LIKE", "YOU ARE", "UH HUH", "UR", "NEXT", "WHAT?", "SURE"],
-                "DONE"    => ["SURE", "UH HUH", "NEXT", "WHAT?", "YOUR", "UR", "YOU'RE", "HOLD", "LIKE", "YOU", "U", "YOU ARE", "UH UH", "DONE"],
-                "NEXT"    => ["WHAT?", "UH HUH", "UH UH", "YOUR", "HOLD", "SURE", "NEXT", "LIKE", "DONE", "YOU ARE", "UR", "YOU'RE", "U", "YOU"],
-                "HOLD"    => ["YOU ARE", "U", "DONE", "UH UH", "YOU", "UR", "SURE", "WHAT?", "YOU'RE", "NEXT", "HOLD", "UH HUH", "YOUR", "LIKE"],
-                "SURE"    => ["YOU ARE", "DONE", "LIKE", "YOU'RE", "YOU", "HOLD", "UH HUH", "UR", "SURE", "U", "WHAT?", "NEXT", "YOUR", "UH UH"],
-                "LIKE"    => ["YOU'RE", "NEXT", "U", "UR", "HOLD", "DONE", "UH UH", "WHAT?", "UH HUH", "YOU", "LIKE", "SURE", "YOU ARE", "YOUR"],
+                "YOU"     => [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28],
+                "PRESS"   => [7, 4, 1, 9, 6, 2, 13, 12, 8, 5, 11, 3, 10, 14],
+                "NOTHING" => [12, 7, 2, 4, 1, 8, 10, 6, 5, 3, 14, 11, 13, 9],
+                "DONE"    => [15, 20, 19, 23, 17, 21, 18, 22, 26, 24, 28, 16, 25, 27],
+                "WAIT"    => [12, 10, 8, 2, 1, 5, 11, 6, 3, 14, 13, 9, 7, 4],
+                "UH UH"   => [21, 28, 16, 18, 19, 25, 27, 24, 20, 26, 17, 15, 22, 23],
+                "LIKE"    => [18, 19, 28, 21, 22, 27, 25, 23, 20, 24, 26, 15, 16, 17],
+                "WHAT"    => [12, 3, 5, 13, 9, 8, 4, 10, 2, 11, 14, 1, 6, 7],
+                "NEXT"    => [23, 20, 25, 17, 22, 15, 19, 26, 27, 16, 21, 18, 28, 24],
+                "READY"   => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+                "RIGHT"   => [1, 13, 9, 6, 10, 14, 3, 7, 4, 5, 12, 8, 2, 11],
+                "MIDDLE"  => [8, 9, 2, 3, 13, 6, 10, 14, 5, 4, 7, 11, 12, 1],
+                "LEFT"    => [7, 5, 11, 10, 4, 1, 8, 3, 12, 14, 6, 9, 2, 13],
+                "UH HUH"  => [20, 17, 16, 24, 27, 22, 25, 19, 15, 26, 18, 21, 28, 23],
+                "NO"      => [8, 12, 14, 11, 3, 9, 7, 1, 13, 5, 6, 2, 10, 4],
+                "HOLD"    => [16, 28, 27, 25, 24, 21, 15, 23, 18, 19, 22, 20, 17, 26],
+                "SURE"    => [16, 27, 26, 18, 24, 22, 20, 21, 15, 28, 23, 19, 17, 25],
+                "YOU ARE" => [17, 19, 26, 20, 23, 27, 25, 22, 24, 28, 18, 15, 21, 16],
+                "FIRST"   => [5, 2, 1, 4, 10, 7, 13, 12, 14, 9, 8, 3, 6, 11],
+                "BLANK"   => [14, 7, 2, 4, 8, 6, 9, 13, 10, 3, 5, 12, 1, 11],
+                "YOUR"    => [25, 16, 20, 17, 19, 21, 15, 28, 18, 24, 23, 22, 26, 27],
+                "WHAT?"   => [24, 22, 18, 17, 28, 27, 25, 26, 16, 20, 21, 19, 23, 15],
+                "UHHH"    => [9, 13, 5, 3, 2, 1, 7, 10, 6, 8, 12, 4, 14, 11],
+                "U"       => [20, 15, 19, 23, 18, 21, 25, 27, 28, 24, 26, 22, 16, 17],
+                "YOU'RE"  => [24, 18, 21, 19, 25, 16, 28, 17, 23, 20, 15, 27, 26, 22],
+                "OKAY"    => [4, 10, 11, 1, 12, 13, 14, 2, 5, 9, 8, 6, 3, 7],
+                "UR"      => [27, 28, 21, 20, 23, 15, 17, 22, 18, 26, 19, 25, 16, 24],
+                "YES"     => [2, 7, 12, 4, 11, 3, 6, 9, 13, 1, 5, 8, 10, 14],
             )
+
+            step_2_wordlist = [
+                "YES",
+                "OKAY",
+                "WHAT",
+                "MIDDLE",
+                "LEFT",
+                "PRESS",
+                "RIGHT",
+                "BLANK",
+                "READY",
+                "NO",
+                "FIRST",
+                "UHHH",
+                "NOTHING",
+                "WAIT",
+                "SURE",
+                "YOU ARE",
+                "YOUR",
+                "YOU'RE",
+                "NEXT",
+                "UH HUH",
+                "UR",
+                "HOLD",
+                "WHAT?",
+                "YOU",
+                "UH UH",
+                "LIKE",
+                "DONE",
+                "U",               
+            ]
 
             button_word = uppercase(textprompt("What is the word on the $(location_names[location]) button?"; choices = lowercase.(keys(step_2_words))))
             
-            for step_2_word in cycle(step_2_words[button_word])
+            for step_2_word_index in cycle(step_2_words[button_word])
+                step_2_word = step_2_wordlist[step_2_word_index]
                 print("Is there a button with the word '$step_2_word' on it? (leave blank for no) ")
                 response = clean(readline())
                 if !(response in ["", "n", "no"])
                     println("Press that button.")
                     break
                 end
+            end
+        end
+    ),
+    Command(
+        ["memory"],
+        [],
+        0,
+        """Solves the memory module.
+        Usage: memory""",
+        function()
+            memory = Vector{NTuple{2,Union{Int,UndefInitializer}}}([(undef, undef) for i in 1:5])
+
+            for stage in 1:5
+                display = parse(Int, textprompt("Stage $stage: what number is shown on the display?"; choices = ["1", "2", "3", "4"]))
+
+                position, label = [
+                    (2, undef)            (2, undef)            (3, undef)            (4, undef)           ;
+                    (undef, 4)            (memory[1][1], undef) (1, undef)            (memory[1][1], undef);
+                    (undef, memory[2][2]) (undef, memory[1][2]) (3, undef)            (undef, 4)           ;
+                    (memory[1][1], undef) (1, undef)            (memory[2][1], undef) (memory[2][1], undef);
+                    (undef, memory[1][2]) (undef, memory[2][2]) (undef, memory[4][2]) (undef, memory[3][2]);
+                ][stage, display]
+
+                if position === undef
+                    println("Press the button labeled $label.")
+                    stage < 5 && (position = parse(Int, textprompt("What position was that button in?"; choices = ["1", "2", "3", "4"])))
+                elseif label === undef
+                    println("Press the button in position $position.")
+                    stage < 5 && (label = parse(Int, textprompt("What was that button's label?"; choices = ["1", "2", "3", "4"])))
+                end
+                memory[stage] = (position, label)
             end
         end
     )
