@@ -1,10 +1,5 @@
 include("julia_cli.jl"); using .CLI
 
-mutable struct Bomb
-    memodict::Dict{String,Any}
-end
-Bomb() = Bomb(Dict())
-
 abstract type AbstractQuestion end
 
 struct StringQuestion <: AbstractQuestion
@@ -19,37 +14,48 @@ struct IntegerQuestion <: AbstractQuestion
     question::String
 end
 
+Base.convert(::Type{String}, q::AbstractQuestion) = q.question
+
+mutable struct Bomb
+    memodict::Dict{AbstractQuestion,Any}
+end
+Bomb() = Bomb(Dict())
+
 function Base.getindex(bomb::Bomb, question::AbstractQuestion)
-    value = undef
-    if isa(question, StringQuestion)
-        print("$(question.question)? ")
-        value = clean(readline())
-    elseif isa(question, BooleanQuestion)
-        value = yesnoprompt("$(question.question)?"; force=true)
-    elseif isa(question, IntegerQuestion)
-        while true
+    if question ∉ keys(bomb.memodict)
+        value = undef
+        if isa(question, StringQuestion)
             print("$(question.question)? ")
-            try
-                value = parse(Int, strip(readline()))
-                break
-            catch e
-                if isa(e, ArgumentError)
-                    println("Please give an integer.")
-                else
-                    rethrow(e)
+            value = clean(readline())
+        elseif isa(question, BooleanQuestion)
+            value = yesnoprompt("$(question.question)?"; force=true)
+        elseif isa(question, IntegerQuestion)
+            while true
+                print("$(question.question)? ")
+                try
+                    value = parse(Int, strip(readline()))
+                    break
+                catch e
+                    if isa(e, ArgumentError)
+                        println("Please give an integer.")
+                    else
+                        rethrow(e)
+                    end
                 end
             end
         end
+        bomb.memodict[question] = value
     end
-    question ∉ bomb.memodict && (bomb.memodict[question] = value)
     bomb.memodict[question]
 end
 
-function Base.setindex!(bomb::Bomb, question::String, value)
+function Base.setindex!(bomb::Bomb, value, question::AbstractQuestion)
     bomb.memodict[question] = value
 end
 
 Base.in(question::String, bomb::Bomb) = question in bomb.memodict
+
+Base.count(c::Char, s::String) = count(isequal(c), s)
 
 version = "1.0.0"
 
@@ -65,46 +71,21 @@ qcodes = Dict(
     "serial_vowel" => BooleanQuestion("Serial number contains a vowel"),
     "serial_odd" => BooleanQuestion("Serial number ends with an odd digit"),
     "serial" => StringQuestion("Serial number"),
-    "batt_count" => IntegerQuestion("Number of batteries")
+    "batt_count" => IntegerQuestion("Number of batteries"),
+    "lit_car" => BooleanQuestion("Is there a lit indicator labeled CAR"),
+    "lit_frk" => BooleanQuestion("Is there a lit indicator labeled FRK"),
+    "strikes" => IntegerQuestion("Number of strikes"),
 )
+bomb[qcodes["strikes"]] = 0
 
-ktane_commandlist = CommandList([
-    Command(
-        ["help", "h", "?"],
-        [String],
-        0,
-        """Display help information.
-        Usage: help [command]""",
-        function(cmd = nothing)
-            if cmd === nothing
-                println("""Welcome to KTaNE Expert Bot 9000 v$version
+ktane_commandlist = CommandList("""Welcome to KTaNE Expert Bot 9000 v$version
 
-                Type `commands` for a list of commands. To begin defusal, simply type in the command corresponding to the name of the module that you're currently defusing. The program will ask you for relevant information it needs in order to know how to finish the defusal, before giving you the answer. 
-                    
-                The expert will remember elements of the bomb that you tell it about, such as the number of batteries in the bomb, and the serial code, so you will only need to type those on once, if needed.""")
-            else
-                command = findcommand(cmd, ktane_commandlist)
-                if command === nothing
-                    println("Command '$cmd' not found. Type `commands` for a list of commands.")
-                else
-                    println(helptext(command))
-                end
-            end
-        end
-    ),
-    Command(
-        ["commands", "c"],
-        [],
-        0,
-        """Display the list of commands.
-        Usage: commands""",
-        function()
-            println("Displaying a list of commands:")
-            for command in ktane_commandlist.commands
-                println(command.names[1]) # assume all commands have at least one name
-            end
-        end
-    ),
+Type `commands` for a list of commands. To begin defusal, simply type in the command corresponding to the name of the module that you're currently defusing. The program will ask you for relevant information it needs in order to know how to finish the defusal, before giving you the answer. 
+    
+The expert will remember elements of the bomb that you tell it about, such as the number of batteries in the bomb, and the serial code, so you will only need to type those on once, if needed.
+
+Make sure to record strikes you recieve with the `strike` command; some solutions to modules differ depending on the number of strikes you have!""",
+[
     Command(
         ["reset"],
         [],
@@ -121,15 +102,57 @@ ktane_commandlist = CommandList([
         end
     ),
     Command(
-        ["exit", "quit", "stop", "leave"],
+        ["memory", "memo"],
         [],
         0,
-        """Exit the program.
-        Usage: exit""",
+        """Print out information stored in the program's memory about the bomb.
+        Usage: memory""",
         function()
-            if yesnoprompt("Are you sure you want to quit?")
-                println("Goodbye.")
-                ktane_commandlist.shouldexit = true 
+            println("Bomb memory:")
+            
+            for (key, val) in bomb.memodict
+                valstr = string(val)
+                isa(key, BooleanQuestion) && (valstr = val ? "Yes" : "No")
+                println("$key: $val")
+            end
+        end
+    ),
+    Command(
+        ["serial"],
+        [String],
+        1,
+        """Provide the serial code of the bomb in advance, which may mean that solving future puzzles requires less further input.
+        Usage: serial <serial number>""",
+        function(serial)
+            bomb[qcodes["serial"]] = serial
+            bomb[qcodes["serial_vowel"]] = any(v in serial for v in "aeiou")
+            bomb[qcodes["serial_odd"]] = serial[end] in "13579"
+            println("Set the bomb's serial code to $serial")
+        end
+    ),
+    Command(
+        ["strike", "strikes"],
+        [Int],
+        0,
+        """Record a strike, or manually set the number of strikes.
+        Usage: strike [number of strikes]
+        
+        If no argument is given, the number of strikes is incremented by 1. Otherwise, the number is set to the provided argument.""",
+        function(strikes=nothing)
+            if strikes === nothing
+                bomb[qcodes["strikes"]] < 3 && (bomb[qcodes["strikes"]] += 1)
+                if bomb[qcodes["strikes"]] == 1
+                    println("Now at 1 strike")
+                elseif bomb[qcodes["strikes"]] == 2
+                    println("Now at 2 strikes")
+                else
+                    println("BOOM!")
+                end
+            elseif strikes ∉ 0:3
+                println("That doesn't make any sense, you can only have 0, 1, or 2 strikes.")
+            else
+                bomb[qcodes["strikes"]] = strikes
+                println("Set the number of strikes to $strikes")
             end
         end
     ),
@@ -142,12 +165,12 @@ ktane_commandlist = CommandList([
 
         Provide a sequence of characters corresponding to the color and number of wires in the module, according to this pattern:
 
-        R - Red
-        G - Green
-        B - Blue
-        Y - Yellow
-        W - White
-        K - Black
+            R - Red
+            G - Green
+            B - Blue
+            Y - Yellow
+            W - White
+            K - Black
 
         Examples:
 
@@ -172,31 +195,237 @@ ktane_commandlist = CommandList([
                     tocut = 2
                 elseif sequence[end] == 'w'
                     tocut = 3
-                elseif count(w -> w == 'b', sequence) > 1
-                    tocut = findlast(map(l -> l == 'b', sequence))
+                elseif count('b', sequence) > 1
+                    tocut = findlast(map(isequal('b'), sequence))
                 else
                     tocut = 3
                 end
             elseif length(sequence) == 4
-                if count(w -> w == 'r', sequence) > 1 && bomb[qcodes["serial_odd"]]
+                if count('r', sequence) > 1 && bomb[qcodes["serial_odd"]]
                     tocut = 4
-                elseif sequence[end] == 'y' && all(w -> w != r, sequence)
+                elseif sequence[end] == 'y' && count('r', sequence) == 0
                     tocut = 1
-                elseif count(w -> w == 'b', sequence) == 1
+                elseif count('b', sequence) == 1
                     tocut = 1
-                elseif count(w -> w == 'y', sequence) > 1
+                elseif count('y', sequence) > 1
                     tocut = 4
                 else
                     tocut = 2
                 end
+            elseif length(sequence) == 5
+                if sequence[end] == 'k' && bomb[qcodes["serial_odd"]]
+                    tocut = 4
+                elseif count('r', sequence) == 1 && count('y', sequence) > 1
+                    tocut = 1
+                elseif count('k', sequence) == 0
+                    tocut = 2
+                else
+                    tocut = 1
+                end
+            elseif length(sequence) == 6
+                if count('y', sequence) == 0 && bomb[qcodes["serial_odd"]] 
+                    tocut = 3
+                elseif count('y', sequence) == 1  count('w', sequence) > 1
+                    tocut = 4
+                elseif  count('r', sequence) == 0
+                    tocut = 6
+                else
+                    tocut = 4
+                end
             end
 
-            println(tocut)
+            # print answer
+            wirenames = ["first", "second", "third", "fourth", "this wire is never cut lmao", "sixth"]
+            println("Cut the $(wirenames[tocut]) wire.")
+        end
+    ),
+    Command(
+        ["button"],
+        [String, String],
+        2,
+        """Solves the button module.
+        Usage: button <color> <label>
+
+        Give the color of the button, and the name of the button's label.
+
+        Examples:
+
+        Yellow button with the word 'detonate' written on it: `button yellow detonate`
+        White button with the word 'abort': `button white abort`""",
+        function(color, label)
+            hold = undef
+            if color == "blue" && label == "abort"
+                hold = true
+            elseif label == "detonate" && bomb[qcodes["batt_count"]] > 1
+                hold = false
+            elseif color == "white" && bomb[qcodes["lit_car"]] 
+                hold = true
+            elseif bomb[qcodes["batt_count"]] > 2 && bomb[qcodes["lit_frk"]] 
+                hold = false
+            elseif color == "yellow"
+                hold = true
+            elseif color == "red" && label == "hold"
+                hold = false
+            else
+                hold = true
+            end
+
+            if hold
+                println("Press and hold the button, and type in the color of the indicator light that appears;")
+                lightcolor = textprompt("|")
+                
+                releasedigit = 1
+                if lightcolor == "blue"
+                    releasedigit = 4
+                elseif lightcolor == "white"
+                    releasedigit = 1
+                elseif lightcolor == "yellow"
+                    releasedigit = 5
+                end
+
+                println("Release the button when the timer has a $releasedigit in any position.")
+            else
+                println("Immediately press and release the button.")
+            end
+        end
+    ),
+    Command(
+        ["keypad"],
+        [String, String, String, String],
+        4,
+        """Solves the keypad module.
+        Usage: keypad <symbol code 1> <symbol code 2> <symbol code 3> <symbol code 4>
+
+        Use the reference below to determine which symbol codes to type for the respective symbols:
+
+            OL - O with a small line protruding from the bottom
+            AT - A with a T inside it
+            LM - Lambda symbol with a small stroke through the top
+            SN - Swirly reverse N
+            TET - Symbol consisting of a sideways T on the left, a downward facing euro symbol below, and an upside down triangle on the top right
+            SH - Swirly cursive H with a hook on the bottom right
+            CD - C with a dot in the center
+            RCD - Reverse C with a dot in the center
+            ED - Reverse euro symbol with two dots above it
+            Q - Cursive Q
+            WS - White Star
+            BS - Black Star
+            ? - Upside down question mark
+            CP - Copyright symbol
+            WC - Wavy W with a comma above it, wearing a small hat
+            KK - Two K's, mirrored, with adjoined spines
+            P3 - Partial 3 with the bottom unfinished and trailed off to the bottom right
+            DT - Lowercase delta, looks like a 6 with a flat top
+            PR - Reverse paragraph symbol
+            BT - Lowercase B with a T serif crossing through it's spine
+            FC - Smiley face with it's tongue sticking out
+            PSI - Psi symbol, looks like a menorah or canelabra
+            S3 - 3 with antennae and a tail that makes it look like a snail
+            PZ - Puzzle piece with square edges
+            AE - ae
+            RN - Reverse uppercase N with a curly bowl above it
+            OM - Omega symbol
+        
+        Examples:
+        
+        One symbol is an A with a T in it, one is a lambda, one is a swirly H, and one is a reverse C with a dot: `keypad AT LM SH RCD`
+        One symbol is a sideways T, E and triangle, one is two mirrored Ks, one is a smiley face, and one is an upside-down question mark: `keypad TET KK FC ?`""",
+        function(s1, s2, s3, s4)
+            symbol_list = ["OL", "AT", "LM", "RN", "TET", "SH", "CD", "RCD", "ED", "Q", "WS", "BS", "?", "CP", "WC", "KK", "P3", "DT", "PR", "BT", "FC", "PSI", "S3", "PZ", "AE", "RN", "OM"]
+            symbol_columns = [
+                ["OL", "AT", "LM", "SN", "TET", "SH", "RCD"],
+                ["ED", "OL", "RCD", "Q", "WS", "SH", "?"],
+                ["CP", "WC", "Q", "KK", "P3", "LM", "WS"],
+                ["DT", "PR", "BT", "TET", "KK", "?", "SM"],
+                ["PSI", "SM", "BT", "CD", "PR", "S3", "BS"],
+                ["DT", "ED", "PZ", "AE", "PSI", "RN", "OM"]
+            ]
+
+            given = map(uppercase, [s1, s2, s3, s4])
+            badcode = findfirst(code -> code ∉ symbol_list, given)
+            if badcode !== nothing
+                println("Code $(given[badcode]) isn't a valid code; refer to the helptext for this command to see a list of valid symbol codes.")
+                return
+            end
+
+            right_col_ind = findfirst(col -> all(symb in col for symb in given), symbol_columns)
+            if right_col_ind === nothing
+                println("No solution was found... did you type the right codes in?")
+                return
+            end
+
+            right_col = symbol_columns[right_col_ind]
+            correct_order = sort(given, by=(s -> findfirst(isequal(s), right_col)))
+
+            println("The correct order to push the buttons in is $(correct_order[1]), $(correct_order[2]),$(correct_order[3]), and $(correct_order[4]).")
+        end
+    ),
+    Command(
+        ["simon", "simonsays"],
+        [String],
+        1,
+        """Solves the simon says module.
+        Usage: simon <light sequence>
+        
+        Provide a sequence of characters corresponding to the color and order of blinking lights that appear.
+        
+        Use the following reference to determine which letter to type for each color:
+            
+            R - Red
+            B - Blue
+            G - Green
+            Y - Yellow
+            
+        Examples:
+        
+        Flashes green: `simon G`
+        Flashes green, yellow, green, blue: `simon GYGB`""",
+        function(sequence)
+            if bomb[qcodes["strikes"]] ≥ 3
+                println("You already exploded!")
+                return
+            end
+
+            sequence = collect(uppercase(sequence))
+            if !all(l in "RBGY" for l in sequence)
+                println("Only give color sequences consisting of the letters R, B, G, and Y.")
+                return
+            end
+
+            header = ['R', 'B', 'G', 'Y']
+
+            translation_table = Dict(
+                true => [
+                    ['B', 'R', 'Y', 'G'],
+                    ['Y', 'G', 'B', 'R'],
+                    ['G', 'R', 'Y', 'B']
+                ],
+                false => [
+                    ['B', 'Y', 'G', 'R'],
+                    ['R', 'B', 'Y', 'G'],
+                    ['Y', 'G', 'B', 'R']
+                ]
+            )[bomb[qcodes["serial_vowel"]]]
+
+            names = Dict(
+                'R' => "Red",
+                'B' => "Blue",
+                'G' => "Green",
+                'Y' => "Yellow"
+            )
+
+            indicies = map(s -> findfirst(isequal(s), header), collect(sequence))
+            translation = translation_table[bomb[qcodes["strikes"]]+1][indicies]
+            solution_response = map(c -> names[c], translation)
+
+            println("Press the buttons in this order: $(join(solution_response, ", ")).")
         end
     )
 ])
 
 function main()
+    # bomb[qcodes["serial_vowel"]] = false
+    # findcommand("simon", ktane_commandlist).action("RGBY")
     println(introtext)
     repl(ktane_commandlist)
 end

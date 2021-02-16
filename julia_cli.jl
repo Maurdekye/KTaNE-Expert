@@ -1,6 +1,6 @@
 module CLI
 
-export Command, CommandList, repl, yesnoprompt, findcommand, helptext
+export Command, CommandList, repl, yesnoprompt, textprompt, findcommand, helptext
 
 struct Command
     names::Vector{String}
@@ -18,6 +18,55 @@ mutable struct CommandList
     shouldexit::Bool
 end
 CommandList(commands) = CommandList(commands, false)
+function CommandList(help_text::String, commands::Vector{Command})
+    command_list = CommandList([[
+        Command(
+            ["help", "h", "?"],
+            [String],
+            0,
+            """Display help information.
+            Usage: help [command]""",
+            function(cmd = nothing)
+                if cmd === nothing
+                    println(help_text)
+                else
+                    command = findcommand(cmd, command_list)
+                    if command === nothing
+                        println("Command '$cmd' not found. Type `commands` for a list of commands.")
+                    else
+                        println(helptext(command))
+                    end
+                end
+            end
+        ),
+        Command(
+            ["commands", "c"],
+            [],
+            0,
+            """Display the list of commands.
+            Usage: commands""",
+            function()
+                println("Displaying a list of commands:")
+                for command in command_list.commands
+                    println(command.names[1]) # assume all commands have at least one name
+                end
+            end
+        ),
+        Command(
+            ["exit", "quit", "stop", "leave"],
+            [],
+            0,
+            """Exit the program.
+            Usage: exit""",
+            function()
+                if yesnoprompt("Are you sure you want to quit?")
+                    println("Goodbye.")
+                    command_list.shouldexit = true 
+                end
+            end
+        ),
+    ]; commands])
+end
 
 struct CommandException <: Exception
     msg::String
@@ -42,6 +91,17 @@ function yesnoprompt(prompt::String; force::Bool=false)::Bool
         elseif response in ["n", "no"] || !force
             return false
         end
+    end
+end
+
+function textprompt(prompt::String; choices::Union{Vector{String},Nothing}=nothing)
+    while true
+        print("$prompt ")
+        response = clean(readline())
+        if isempty(response) || (choices !== nothing && response ∉ choices)
+            continue
+        end
+        return response
     end
 end
 
