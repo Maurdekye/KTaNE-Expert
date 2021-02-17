@@ -737,7 +737,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
 
             <number><color code><letter>
 
-        where color code is one of RBK, representing the colors Red, Blue, and Black, respectively. 
+        Where the color code is one of R, B, or K, representing the colors Red, Blue, and Black, respectively. 
 
         Example:
         
@@ -747,11 +747,11 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         The next panel has a black wire running from 6 to A, and a red wire from 4 to A: `6KA, 4RA`
         Repeat for each panel in the sequence.""",
         function(num_panels)
+
             wire_cuts = Dict(
                 :red => [[:C], [:B], [:A], [:A, :C], [:B], [:A], [:A, :B, :C], [:A, :B], [:B]],
                 :blue => [[:B], [:A, :C], [:B], [:A], [:B], [:B, :C], [:C], [:A, :C], [:A]],
                 :black => [[:A, :B, :C], [:A, :C], [:B], [:A, :C], [:B], [:B, :C], [:A, :B], [:C], [:C]],
-    
             )
 
             wire_counts = Dict(
@@ -787,10 +787,10 @@ Make sure to record strikes you recieve with the `strike` command; some solution
 
                 tocut = Vector{Tuple{Int,Symbol,Symbol}}()
                 for (number, color, letter) in sort(wires, by=(t -> t[1]))
-                    if letter in wire_cuts[color]
+                    wire_counts[color] += 1
+                    if letter in wire_cuts[color][wire_counts[color]]
                         push!(tocut, (number, color, letter))
                     end
-                    wire_counts[color] += 1
                 end
 
                 proceed = panel == num_panels ? "" : ", and proceed to the next panel"
