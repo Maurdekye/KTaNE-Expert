@@ -240,14 +240,26 @@ function repl(commands::CommandList)
             end
 
             # execute command
-            if cmd.takesraw
-                cmd.action(arglist...; rawargs = strip(args))
-            else
-                cmd.action(arglist...)
+            try
+                if cmd.takesraw
+                    cmd.action(arglist...; rawargs = strip(args))
+                else
+                    cmd.action(arglist...)
+                end
+            catch e
+                if isa(e, InterruptException)
+                    println("\nCommand aborted.")
+                else
+                    rethrow(e)
+                end
             end
         end
     catch e
-        isa(e, InterruptException) || rethrow(e)
+        if isa(e, InterruptException)
+            println()
+        else
+            rethrow(e)
+        end
     end
 end
 

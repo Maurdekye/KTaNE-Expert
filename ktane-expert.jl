@@ -67,6 +67,8 @@ version = "1.0.0"
 
 introtext = """Keep Talking and Nobody Explodes
 Expert Bot 9000 v$version
+
+Type `commands` for a list of commands, or `help` for a short guide on how to use this program.
 """
 
 bomb = Bomb()
@@ -721,6 +723,86 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             end
 
         end
+    ),
+    Command(
+        ["wiresequence", "wireseq", "swires"],
+        [Int],
+        1,
+        """Solves the wire sequences module.
+        Usage: wiresequence <# of panels>
+
+        For each panel, the program will ask you for a series of codes describing each wire, and where it is connected to. Input the correct codes for the current panel, cut the wires that the program tells you to cut, proceed to the next panel, and input the next panel's wires.
+        
+        When writing wire codes, write a comma-separated list with each code in this pattern:
+
+            <number><color code><letter>
+
+        where color code is one of RBK, representing the colors Red, Blue, and Black, respectively. 
+
+        Example:
+        
+        You see a wire sequence module with 4 panels: `wiresequence 4`
+        The first panel has a red wire running from 1 to A, a blue wire from 2 to C, and a blue wire from 2 to D: `1RA, 2BC, 2BD`
+        You submit the codes, cut the respective wires, and proceed to the next panel.
+        The next panel has a black wire running from 6 to A, and a red wire from 4 to A: `6KA, 4RA`
+        Repeat for each panel in the sequence.""",
+        function(num_panels)
+            wire_cuts = Dict(
+                :red => [[:C], [:B], [:A], [:A, :C], [:B], [:A], [:A, :B, :C], [:A, :B], [:B]],
+                :blue => [[:B], [:A, :C], [:B], [:A], [:B], [:B, :C], [:C], [:A, :C], [:A]],
+                :black => [[:A, :B, :C], [:A, :C], [:B], [:A, :C], [:B], [:B, :C], [:A, :B], [:C], [:C]],
+    
+            )
+
+            wire_counts = Dict(
+                :red => 0,
+                :blue => 0,
+                :black => 0,
+            )
+
+            for panel in 1:num_panels
+                wirecoderegexp = r"^(?<number>\d+)(?<color>[BRK])(?<letter>[ABC])$"
+
+                matchlist = undef
+                while true
+                    print("Panel $panel configuration: ")
+                    rawstr = uppercase(clean(readline()))
+                    isempty(rawstr) && continue
+                    codes = map(strip ∘ string, split(rawstr, ","; keepempty=false))
+                    badcode = findfirst(c -> !occursin(wirecoderegexp, c), codes)
+                    if badcode !== nothing
+                        println("Wire code $(codes[badcode]) is invalid.")
+                        continue
+                    end
+                    matchlist = map(curry(match, wirecoderegexp), codes)
+                    break
+                end
+
+                wires = map(matchlist) do m
+                    number = parse(Int, m[:number])
+                    color = Dict("R" => :red, "B" => :blue, "K" => :black)[m[:color]]
+                    letter = Dict("A" => :A, "B" => :B, "C" => :C)[m[:letter]]
+                    (number, color, letter)
+                end
+
+                tocut = Vector{Tuple{Int,Symbol,Symbol}}()
+                for (number, color, letter) in sort(wires, by=(t -> t[1]))
+                    if letter in wire_cuts[color]
+                        push!(tocut, (number, color, letter))
+                    end
+                    wire_counts[color] += 1
+                end
+
+                proceed = panel == num_panels ? "" : ", and proceed to the next panel"
+
+                if isempty(tocut)
+                    println("Cut none of the wires$proceed.")
+                else
+                    cut_list = map((n, _, l) -> "$n - $l")
+                    println("Cut the $(conjuncted_list(cut_list)) wire(s)$proceed.")
+                end
+            end
+        end
     )
 ])
 
@@ -729,9 +811,10 @@ function main()
     # findcommand("simon", ktane_commandlist).action("RGBY")
     # findcommand("morse", ktane_commandlist).action("")
     # similarcommands("strial", ktane_commandlist)
-    #findcommand("cwires", ktane_commandlist).action("", rawargs="B, Y, R, G")
+    # findcommand("cwires", ktane_commandlist).action("", rawargs="B, Y, R, G")
     println(introtext)
     repl(ktane_commandlist)
+    println("Goodbye.")
 end
 
 isinteractive() || main()
