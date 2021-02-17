@@ -1,6 +1,8 @@
 module CLI
+using Base.Iterators
 
-export Command, RawCommand, CommandList, repl, yesnoprompt, textprompt, findcommand, helptext, clean
+export Command, RawCommand, CommandList, repl, yesnoprompt, textprompt, findcommand, 
+helptext, clean, dictmap, word_similarity, searchcommands, similarcommands
 
 struct Command
     names::Vector{String}
@@ -32,7 +34,12 @@ function CommandList(help_text::String, commands::Vector{Command})
                 else
                     command = findcommand(cmd, command_list)
                     if command === nothing
-                        println("Command '$cmd' not found. Type `commands` for a list of commands.")
+                        similar = similarcommands(cmd, command_list)
+                        if similar === nothing
+                            println("Command '$cmd' not found. Type `commands` for a list of commands.")
+                        else
+                            println("Command '$cmd' not found. Did you mean $similar?")
+                        end
                     else
                         println(helptext(command))
                     end
@@ -80,6 +87,8 @@ function helptext(cmd::Command)::String
     $(cmd.helptext)"""
 end
 
+dictmap(f, list) = Dict(map(v -> v => f(v), list))
+
 clean(text) = lowercase(strip(text))
 
 function yesnoprompt(prompt::String; force::Bool=false)::Bool
@@ -114,16 +123,16 @@ function parsevalidate(command::Command, input::String)::Vector{Union{String,Int
         throw(CommandException("Too many arguments! need $(length(command.arglist)), but you gave $(length(inputlist))"))
     else
         for (i, (arg, type)) in enumerate(zip(inputlist, command.arglist))
-            if type == String
+            if type == String # assuming the only two types of inputs needed are String and Int
                 push!(finallist, string(arg))
             elseif type == Int
                 try
                     parsedint = parse(Int, arg)
                     push!(finallist, parsedint)
                 catch ArgumentError
-                    throw(CommandException("Argument $i should be an integer, but '$(arg)' isn't an integer far as I can tell."))
+                    throw(CommandException("Argument $i should be an integer, but '$arg' isn't an integer far as I can tell."))
                 end
-            end # assuming the only two types of inputs needed are String and Int
+            end
         end
     end
     finallist
@@ -135,8 +144,29 @@ function findcommand(name::String, list::CommandList)::Union{Command,Nothing}
         if cleancmd in command.names
             return command
         end
-    end
+    end 
     nothing
+end
+
+function searchcommands(search::String, commandlist::CommandList; leniency::Int=3)::Vector{Tuple{Command,Int,Dict{String,Int}}}
+    list = Vector{Tuple{Command,Int,Dict{String,Int}}}()
+    for command in commandlist.commands
+        names = filter(p -> p.second ≤ leniency, dictmap(word_similarity(search), command.names))
+        !isempty(names) && push!(list, (command, max(values(names)...), names))
+    end
+    sort(list, by=(e -> e[2]))
+end
+
+function similarcommands(search::String, list::CommandList; leniency::Int=3)
+    results = searchcommands(search, list; leniency=leniency)
+    names = map(p -> p.first, sort(collect(flatten(map(r -> collect(r[3]), results))), by=(p -> p.second)))
+    if isempty(names)
+        nothing
+    elseif length(names) == 1
+        names[1]
+    else
+        "$(join(names[1:end-1], ", ")), or $(names[end])"
+    end
 end
 
 function splitcmd(input::String)::Tuple{String,String}
@@ -144,6 +174,30 @@ function splitcmd(input::String)::Tuple{String,String}
     length(inputsplit) == 2 && return (inputsplit[1], inputsplit[2])
     length(inputsplit) == 1 && return (inputsplit[1], "")
 end
+
+function word_similarity(word1::String, word2::String)::Int # optimized wagner-fischer levenshtein distance algorithm
+    "" in [word1, word2] && return max(length.([word1, word2])...)
+
+    previous = collect(0:length(word2))
+    current = undef
+  
+    for y in 2:length(word1)+1
+      current = fill(0, length(word2)+1)
+      current[1] = y-1
+      for x in 2:length(word2)+1
+        if word1[y-1] == word2[x-1]
+          current[x] = previous[x-1]
+        else
+          current[x] = min(current[x-1], previous[x], previous[x-1]) + 1
+        end
+      end
+      previous .= current
+    end
+  
+    current[end]
+end
+
+word_similarity(word::String) = word2 -> word_similarity(word, word2)
 
 function repl(commands::CommandList)
     try
@@ -157,7 +211,12 @@ function repl(commands::CommandList)
             label, args = splitcmd(userin)
             cmd = findcommand(label, commands)
             if cmd === nothing
-                println("Command '$label' not found. Type `commands` for a list of commands.")
+                similar = similarcommands(label, commands)
+                if similar === nothing
+                    println("Command '$label' not found. Type `commands` for a list of commands.")
+                else
+                    println("Command '$label' not found. Did you mean $similar?")
+                end
                 continue
             end
             arglist = undef

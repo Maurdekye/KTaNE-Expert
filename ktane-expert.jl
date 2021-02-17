@@ -433,8 +433,8 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         
         Module display has the word 'BLANK' shown: `whosonfirst BLANK`
         Module display has no word shown: `whosonfirst `""",
-        function(args...; rawargs=nothing)
-            word = rawargs === nothing ? "" : uppercase(rawargs)
+        function(args...; rawargs="")
+            word = uppercase(rawargs)
 
             display_words = Dict(
                 "UR"       => :up_left,
@@ -483,6 +483,12 @@ Make sure to record strikes you recieve with the `strike` command; some solution
 
             location = display_words[word]
 
+            step_2_word_list = [ 
+                "YES", "OKAY", "WHAT", "MIDDLE", "LEFT", "PRESS", "RIGHT", "BLANK", "READY", 
+                "NO", "FIRST", "UHHH", "NOTHING", "WAIT", "SURE", "YOU ARE", "YOUR", "YOU'RE", 
+                "NEXT", "UH HUH", "UR", "HOLD", "WHAT?", "YOU", "UH UH", "LIKE", "DONE", "U",            
+            ]
+
             step_2_word_relations = Dict(
                 1 => [2, 7, 12, 4, 11, 3, 6, 9, 13, 1, 5, 8, 10, 14],
                 2 => [4, 10, 11, 1, 12, 13, 14, 2, 5, 9, 8, 6, 3, 7],
@@ -514,41 +520,10 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                28 => [20, 15, 19, 23, 18, 21, 25, 27, 28, 24, 26, 22, 16, 17],
             )
 
-            step_2_wordlist = [
-                "YES",
-                "OKAY",
-                "WHAT",
-                "MIDDLE",
-                "LEFT",
-                "PRESS",
-                "RIGHT",
-                "BLANK",
-                "READY",
-                "NO",
-                "FIRST",
-                "UHHH",
-                "NOTHING",
-                "WAIT",
-                "SURE",
-                "YOU ARE",
-                "YOUR",
-                "YOU'RE",
-                "NEXT",
-                "UH HUH",
-                "UR",
-                "HOLD",
-                "WHAT?",
-                "YOU",
-                "UH UH",
-                "LIKE",
-                "DONE",
-                "U",               
-            ]
-
-            button_word = uppercase(textprompt("What is the word on the $(location_names[location]) button?"; choices = lowercase.(step_2_wordlist)))
+            button_word = uppercase(textprompt("What is the word on the $(location_names[location]) button?"; choices = lowercase.(step_2_word_list)))
             
-            for step_2_word_index in cycle(step_2_word_relations[indexof(step_2_wordlist, button_word)])
-                step_2_word = step_2_wordlist[step_2_word_index]
+            for step_2_word_index in cycle(step_2_word_relations[indexof(step_2_word_list, button_word)])
+                step_2_word = step_2_word_list[step_2_word_index]
                 print("Is there a button with the word '$step_2_word' on it? (leave blank for no) ")
                 response = clean(readline())
                 if !(response in ["", "n", "no"])
@@ -588,12 +563,98 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 memory[stage] = (position, label)
             end
         end
+    ),
+    RawCommand(
+        ["morsecode", "morse"],
+        [String],
+        1,
+        """Solves the morse code module.
+        Usage: morsecode <morse pattern>
+        
+        Write the morse code pattern as a combination of '.' and '-' to represent dots and dashes. Spaces between words are optional.
+        
+        Examples:
+        
+        `morsecode ... .... . .-.. .-..`
+        `morse -...----..-....`""",
+        function(args...; rawargs="")
+
+            morse_dictionary = Dict(
+                'a' => ".-",
+                'b' => "-..",
+                'c' => "-.-.",
+                'd' => "-..",
+                'e' => ".",
+                'f' => "..-.",
+                'g' => "--.",
+                'h' => "....",
+                'i' => "..",
+                'j' => ".---",
+                'k' => "-.-",
+                'l' => ".-..",
+                'm' => "--",
+                'n' => "-.",
+                'o' => "---",
+                'p' => ".--.",
+                'q' => "--.-",
+                'r' => ".-.",
+                's' => "...",
+                't' => "-",
+                'u' => "..--",
+                'v' => "...-",
+                'w' => ".--",
+                'x' => "-..-",
+                'y' => "-.--",
+                'z' => "--..",
+            )
+
+            word_frequencies = Dict(
+                "shell"  => 3.505,
+                "halls"  => 3.515,
+                "slick"  => 3.522,
+                "trick"  => 3.532,
+                "boxes"  => 3.535,
+                "leaks"  => 3.542,
+                "strobe" => 3.545,
+                "bistro" => 3.552,
+                "flick"  => 3.555,
+                "bombs"  => 3.565,
+                "break"  => 3.572,
+                "brick"  => 3.575,
+                "steak"  => 3.582,
+                "sting"  => 3.592,
+                "vector" => 3.595,
+                "beats"  => 3.600,
+            )
+
+            morse_words = Dict(join(map(l -> morse_dictionary[l], collect(word))) => word for word in keys(word_frequencies))
+            morse_in = filter(in(".-"), rawargs)
+            matches = dictmap(word_similarity(morse_in), collect(keys(morse_words)))
+            score, code = findmin(matches)
+            single_best = length(filter(m -> m.second == score, matches)) == 1
+            frequency = word_frequencies[morse_words[code]]
+
+            # display(sort(collect(matches), by=(p -> p.second)))
+            # println()
+
+            if score == 0
+                println("Set the radio frequency to $frequency MHz, and press TX.")
+            elseif score in 1:2 && single_best
+                println("Unable to find the exact sequence entered, but the right frequency to set the radio to is probably $frequency MHz.")
+            elseif score in 3:4 && single_best
+                println("Unable to find the exact sequence entered. The correct frequency might be $frequency MHz, but you should re-enter the sequence just to be sure.")
+            else
+                println("Unable to find the morse sequence entered; please re-enter the sequence.")
+            end
+        end
     )
 ])
 
 function main()
     # bomb[qcodes["serial_vowel"]] = false
     # findcommand("simon", ktane_commandlist).action("RGBY")
+    # findcommand("morse", ktane_commandlist).action("")
+    # similarcommands("strial", ktane_commandlist)
     println(introtext)
     repl(ktane_commandlist)
 end
