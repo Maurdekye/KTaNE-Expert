@@ -2,7 +2,7 @@ module CLI
 using Base.Iterators
 
 export Command, RawCommand, CommandList, repl, yesnoprompt, textprompt, findcommand, 
-helptext, clean, dictmap, word_similarity, searchcommands, similarcommands
+helptext, clean, dictmap, word_similarity, searchcommands, similarcommands, conjuncted_list
 
 struct Command
     names::Vector{String}
@@ -157,15 +157,23 @@ function searchcommands(search::String, commandlist::CommandList; leniency::Int=
     sort(list, by=(e -> e[2]))
 end
 
+function conjuncted_list(words::Vector{String}; conjunction="and", oxford_comma=false)
+    if length(words) == 0
+        ""
+    elseif length(words) == 1
+        words[1]
+    else
+        "$(join(words[1:end-1], ", "))$(oxford_comma ? "," : "") $conjunction $(words[end])"
+    end
+end
+
 function similarcommands(search::String, list::CommandList; leniency::Int=3)
     results = searchcommands(search, list; leniency=leniency)
     names = map(p -> p.first, sort(collect(flatten(map(r -> collect(r[3]), results))), by=(p -> p.second)))
     if isempty(names)
         nothing
-    elseif length(names) == 1
-        names[1]
     else
-        "$(join(names[1:end-1], ", ")), or $(names[end])"
+        conjuncted_list(names; conjunction = "or")
     end
 end
 
@@ -175,7 +183,7 @@ function splitcmd(input::String)::Tuple{String,String}
     length(inputsplit) == 1 && return (inputsplit[1], "")
 end
 
-function word_similarity(word1::String, word2::String)::Int # optimized wagner-fischer levenshtein distance algorithm
+function word_similarity(word1::String, word2::String)::Int # optimized wagner-fischer levenshtein edit distance algorithm
     "" in [word1, word2] && return max(length.([word1, word2])...)
 
     previous = collect(0:length(word2))

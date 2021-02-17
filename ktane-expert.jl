@@ -61,6 +61,8 @@ Base.count(c::Char, s::String) = count(isequal(c), s)
 indexof(array) = value -> findfirst(isequal(value), array)
 indexof(array, value) = indexof(array)(value)
 
+curry(fn, v) = (x...) -> fn(v, x...)
+
 version = "1.0.0"
 
 introtext = """Keep Talking and Nobody Explodes
@@ -76,6 +78,7 @@ qcodes = Dict(
     "lit_car" => BooleanQuestion("Is there a lit indicator labeled CAR"),
     "lit_frk" => BooleanQuestion("Is there a lit indicator labeled FRK"),
     "strikes" => IntegerQuestion("Number of strikes"),
+    "parallel_port" => BooleanQuestion("Does the bomb have a parallel port"),
 )
 bomb[qcodes["strikes"]] = 0
 
@@ -96,6 +99,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         function()
             if yesnoprompt("Are you sure you want to reset?")
                 bomb = Bomb()
+                bomb[qcodes["strikes"]] = 0
                 println("Memory reset.")
             else
                 println("Reset aborted.")
@@ -647,6 +651,76 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 println("Unable to find the morse sequence entered; please re-enter the sequence.")
             end
         end
+    ),
+    RawCommand(
+        ["complexwires", "cwires"],
+        [String],
+        1,
+        """Solves the complex wires module.
+        Usage: complexwires <wire code sequence>
+
+        Write a sequence of codes separated by commas to represent the sequence of wires and their attributes, using this format for each wire:
+
+            [*][L]<B,G,R,Y,W,K>
+
+        Where the asterisk represents if the wire is marked with a star;
+        the L represents if the wire is marked with a light;
+        the remaining 1-2 characters are the color/colors of the wire, multiple if it is striped, and one otherwise. See the `wires` command help page for a guide on what letter to type for each color.
+
+        Examples:
+        
+        A red wire, a blue wire with a light, a yellow wire with a star, a blue-green striped wire, and a white wire with a star and a light: `complexwires R, LB, *Y, BG, *LW`
+        a blue-white striped wire with a star and a light, a green wire with a light, a blue wire with a light, and a green wire with a star: `complexwires *LBW, LG, BL, *G`""",
+        function(args...; rawargs="")
+            codes = map(uppercase ∘ strip ∘ string, split(rawargs, ","; keepempty=false))
+            wirecoderegexp = r"^(?<star>\*?)(?<light>L?)(?<color>[BGRYWK]{1,2})$"
+            matches = map(curry(match, wirecoderegexp), codes)
+
+            if any(map(isequal(nothing), matches))
+                badcode = findfirst(c -> !occursin(wirecoderegexp, c), codes)
+                println("'$(codes[badcode])' is an invalid wire code; refer to the command's helptext for more information.")
+                return
+            end
+
+            decision_matrix = fill(:D, 2, 2, 2, 2)
+            decision_matrix[:, :, 1, 1] = [:D :P; :B :B]
+            decision_matrix[:, :, 2, 1] = [:S :P; :B :D]
+            decision_matrix[:, :, 1, 2] = [:P :D; :C :C]
+            decision_matrix[:, :, 2, 2] = [:S :S; :S :C]
+
+            cuts = []
+            for (i, m) in enumerate(matches)
+                n(b) = b ? 1 : 2
+
+                blue = n(occursin("B", m[:color]))
+                red = n(occursin("R", m[:color]))
+                star = n(!isempty(m[:star]))
+                light = n(!isempty(m[:light]))
+
+                decision = decision_matrix[blue, red, star, light]
+                
+                if decision == :C
+                    push!(cuts, i)
+                elseif decision == :D
+                    # don't cut
+                elseif decision == :S && !bomb[qcodes["serial_odd"]]
+                    push!(cuts, i)
+                elseif decision == :P && bomb[qcodes["parallel_port"]]
+                    push!(cuts, i)
+                elseif decision == :B && bomb[qcodes["batt_count"]] ≥ 2
+                    push!(cuts, i)
+                end
+
+            end
+
+            if isempty(cuts)
+                println("Don't cut any wires...? Try re-inputting the codes again.")
+            else
+                numbernames = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eight", "ninth", "tenth"]
+                println("Cut the $(conjuncted_list(numbernames[cuts])) wire(s).")
+            end
+
+        end
     )
 ])
 
@@ -655,6 +729,7 @@ function main()
     # findcommand("simon", ktane_commandlist).action("RGBY")
     # findcommand("morse", ktane_commandlist).action("")
     # similarcommands("strial", ktane_commandlist)
+    #findcommand("cwires", ktane_commandlist).action("", rawargs="B, Y, R, G")
     println(introtext)
     repl(ktane_commandlist)
 end
