@@ -33,15 +33,11 @@ function Base.getindex(bomb::Bomb, question::AbstractQuestion)
         elseif isa(question, IntegerQuestion)
             while true
                 print("$(question.question)? ")
-                try
-                    value = parse(Int, strip(readline()))
+                value = safeparse(Int, strip(readline()))
+                if value === nothing
+                    println("Please give an integer.")
+                else
                     break
-                catch e
-                    if isa(e, ArgumentError)
-                        println("Please give an integer.")
-                    else
-                        rethrow(e)
-                    end
                 end
             end
         end
@@ -58,10 +54,24 @@ Base.in(question::String, bomb::Bomb) = question in bomb.memodict
 
 Base.count(c::Char, s::String) = count(isequal(c), s)
 
+Base.map(d::AbstractDict, a::AbstractArray) = map(v -> d[v], a)
+
+Base.adjoint(c::Char) = c
+
 indexof(array) = value -> findfirst(isequal(value), array)
 indexof(array, value) = indexof(array)(value)
 
 curry(fn, v) = (x...) -> fn(v, x...)
+
+reverselookup(dict::AbstractDict, value) = findfirst(isequal(value), dict)
+
+function safeparse(type, n)
+    try
+        parse(type, n)
+    catch
+        return nothing
+    end
+end
 
 version = "1.0.0"
 
@@ -817,6 +827,8 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         
         You see a grid with a marker in the 2nd row and first column, a marker in the 3rd row and 6th column, your position is in the 4th row & 2nd column, and the goal position is the 5th row & 5th column: `maze 2,1 3,6 4,2 5,5`""",
         function(marker1, marker2, pos, goal)
+            # validate input
+
             mazecoordregexp = r"(?<x>\d),(?<y>\d)"
             codes = [marker1, marker2, pos, goal]
             if (badcode = findfirst(c -> !occursin(mazecoordregexp, c), codes)) !== nothing
@@ -831,53 +843,181 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 (x, y)
             end
 
-            if (badcoord = findfirst(c -> c .∉ (1:6,), coords)) !== nothing
+            if (badcoord = findfirst(c -> any(c .∉ (1:6,)), coords)) !== nothing
                 println("$(coords[badcoord]) is out of bounds, grid coordinates can only be between 1-6.")
                 return
             end
 
-            """
-            ╔╦═╗
-            ║║ ║
-            ╠╬═╣
-            ╚╩═╝
-            """
+            # determine maze based off markers
 
-            mazes = [
-                ("""
+            mazes = Dict(
+                Set([(1,5), (6,4)]) => """
                 ╔═╗╔═╕
                 ║╔╝╚═╗
                 ║╚╗╔═╣
                 ║╒╩╝╒╣
                 ╠═╗╔╕║
                 ╚╕╚╝╒╝
-                """, Set([(1,5), (6,4)])),
-                ("""
+                """,
+                Set([(2,3), (5,5)]) => """
                 ╒╦╕╔╦╕
-                ╔╝
-                """, Set([(2,3), (5,5)])),
-                ([
+                ╔╝╔╝╚╗
+                ║╔╝╔═╣
+                ╠╝╔╝╓║
+                ║╓║╔╝║
+                ╙╚╝╚═╝
+                """,
+                Set([(4,3), (6,3)]) => """
+                ╔═╗╓╔╗
+                ╙╓║╚╝║
+                ╔╣║╔╗║
+                ║║║║║║
+                ║╚╝║║║
+                ╚══╝╚╝
+                """,
+                Set([(1,3), (1,6)]) => """
+                ╔╗╒══╗
+                ║║╔══╣
+                ║╚╝╔╕║
+                ║╒═╩═╣
+                ╠═══╗║
+                ╚═╕╒╝╙
+                """,
+                Set([(4,1), (5,4)]) => """
+                ╒═══╦╗
+                ╔══╦╝╙
+                ╠╗╒╝╔╗
+                ║╚═╗╙║
+                ║╔═╩╕║
+                ╙╚═══╝
+                """,
+                Set([(3,2), (5,6)]) => """
+                ╓╔╗╒╦╗
+                ║║║╔╝║
+                ╠╝╙║╔╝
+                ╚╗╔╣║╓
+                ╔╝╙║╚╣
+                ╚══╝╒╝
+                """,
+                Set([(2,1), (2,6)]) => """
+                ╔══╗╔╗
+                ║╔╕╚╝║
+                ╚╝╔╕╔╝
+                ╔╗╠═╝╓
+                ║╙╚═╗║
+                ╚═══╩╝
+                """,
+                Set([(3,3), (4,6)]) => """
+                ╓╔═╗╔╗
+                ╠╩╕╚╝║
+                ║╔══╗║
+                ║╚╗╒╩╝
+                ║╓╚══╕
+                ╚╩═══╕
+                """,
+                Set([(1,2), (3,5)]) => """
+                ╓╔══╦╗
+                ║║╔╕║║
+                ╠╩╝╔╝║
+                ║╓╔╝╒╣
+                ║║║╔╗╙
+                ╚╝╚╝╚╕
+                """,
+            )
 
-                ], Set([(4,3), (6,3)])),
-                ([
+            piece_directions = Dict(
+                '╙' => Set([:up]),
+                '╓' => Set([:down]),
+                '╕' => Set([:left]),
+                '╒' => Set([:right]),
+                '╔' => Set([:down, :right]),
+                '╗' => Set([:down, :left]),
+                '╚' => Set([:up, :right]),
+                '╝' => Set([:up, :left]),
+                '║' => Set([:up, :down]),
+                '═' => Set([:left, :right]),
+                '╩' => Set([:up, :left, :right]),
+                '╦' => Set([:down, :left, :right]),
+                '╣' => Set([:up, :down, :left]),
+                '╠' => Set([:up, :down, :right]),
+                '╬' => Set([:up, :down, :left, :right]),
+                '*' => Set([:up, :down, :left, :right]), # hacky solution to make the final output look nicer; does not affect pathfinding algorithm
+                'Δ' => Set([:up, :down, :left, :right]), # same here
+            )
 
-                ], Set([(1,3), (1,6)])),
-                ([
+            direction_offsets = Dict(
+                :up  => (-1, 0),
+                :down => (1, 0),
+                :left => (0, -1),
+                :right => (0, 1),
+            )
 
-                ], Set([(4,1), (5,4)])),
-                ([
+            marker = Set(coords[1:2])
+            self, goal = map(t -> (7-t[2], t[1]), coords[3:4])
+            if self == goal
+                println("If your and the goals' locations were the same, you wouldn't have to solve the maze!")
+                return
+            end
 
-                ], Set([(3,2), (5,6)])),
-                ([
+            if marker ∉ keys(mazes)
+                println("Unable to recognize marker pattern $(coords[1]), $(coords[2]). Please re-enter the marker coordinates.")
+                return
+            end
 
-                ], Set([(2,1), (2,6)])),
-                ([
+            mazestr = mazes[marker]
+            maze = map(piece_directions, hcat(collect.(split(strip(mazestr), "\n"))...)')
 
-                ], Set([(3,3), (4,6)])),
-                ([
+            # solve maze via depth-first flood fill search
 
-                ], Set([(1,2), (3,5)])),
-            ]
+            fringe = [[self]]
+            soln_path = undef
+            while !isempty(fringe)
+                top = pop!(fringe)
+                curpos = top[end]
+                if curpos == goal
+                    soln_path = top
+                    break
+                end
+                nextposes = [curpos .+ direction_offsets[dir] for dir in maze[curpos...]]
+                nexts = [[top; pos] for pos in nextposes if pos ∉ top]
+                fringe = [nexts; fringe]
+            end
+
+            if soln_path === undef
+                println("No maze solution found...")
+                return
+            end
+
+            # construct outputs
+
+            pathstr_grid = fill('.', 6, 6)
+            pathstr_grid[self...] = '*'
+            pathstr_grid[goal...] = 'Δ'
+            path_instructions = [reverselookup(direction_offsets, soln_path[2] .- soln_path[1])]
+            for i in 2:length(soln_path)-1
+                prevpos, pos, nextpos = soln_path[i-1:i+1]
+                offs = [prevpos .- pos, nextpos .- pos]
+                dirs = map(curry(reverselookup, direction_offsets), offs)
+                push!(path_instructions, dirs[2])
+                path_piece = reverselookup(piece_directions, Set(dirs))
+                pathstr_grid[pos...] = path_piece
+            end
+            pathstr_rows = map(eachrow(pathstr_grid)) do row
+                newrow = collect(join(row, ' '))
+                for i in 2:2:10
+                    if all((newrow[i-1], newrow[i+1]) .∈ (keys(piece_directions),)) && :right in piece_directions[newrow[i-1]] && :left in piece_directions[newrow[i+1]]
+                        newrow[i] = '═'
+                    end
+                end
+                join(newrow)
+            end
+            pathstr = join(pathstr_rows, "\n")
+
+            # display result
+
+            println("Take this path through the grid:")
+            println(pathstr)
+            println("Or equivalently, follow these instructions: $(join(map(string, path_instructions), ", ")).")
         end
     )
 ])
@@ -888,6 +1028,7 @@ function main()
     # findcommand("morse", ktane_commandlist).action("")
     # similarcommands("strial", ktane_commandlist)
     # findcommand("cwires", ktane_commandlist).action("", rawargs="B, Y, R, G")
+    # findcommand("maze", ktane_commandlist).action("1,5", "6,4", "5,2", "5,1")
     println(introtext)
     repl(ktane_commandlist)
     println("Goodbye.")
