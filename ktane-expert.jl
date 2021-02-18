@@ -71,6 +71,8 @@ Expert Bot 9000 v$version
 Type `commands` for a list of commands, or `help` for a short guide on how to use this program.
 """
 
+numbernames = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eight", "ninth", "tenth"]
+
 bomb = Bomb()
 qcodes = Dict(
     "serial_vowel" => BooleanQuestion("Serial number contains a vowel"),
@@ -186,7 +188,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         function(sequence)
             # check validity of passed sequence
             if length(sequence) ∉ 3:6
-                println("Wires come in bunches of 3-6, you gave a sequence of $(length(sequences)) wires.")
+                println("Wires come in bunches of 3-6, you gave a sequence of $(length(sequence)) wires.")
                 return
             end
 
@@ -242,8 +244,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             end
 
             # print answer
-            wirenames = ["first", "second", "third", "fourth", "this wire is never cut lmao", "sixth"]
-            println("Cut the $(wirenames[tocut]) wire.")
+            println("Cut the $(numbernames[tocut]) wire.")
         end
     ),
     Command(
@@ -364,7 +365,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             right_col = symbol_columns[right_col_ind]
             correct_order = sort(given, by=indexof(right_col))
 
-            println("The correct order to push the buttons in is $(correct_order[1]), $(correct_order[2]),$(correct_order[3]), and $(correct_order[4]).")
+            println("The correct order to push the buttons in is $(conjuncted_list(correct_order)).")
         end
     ),
     Command(
@@ -661,7 +662,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         """Solves the complex wires module.
         Usage: complexwires <wire code sequence>
 
-        Write a sequence of codes separated by commas to represent the sequence of wires and their attributes, using this format for each wire:
+        Write a sequence of codes separated by spaces to represent the sequence of wires and their attributes, using this format for each wire:
 
             [*][L]<B,G,R,Y,W,K>
 
@@ -671,10 +672,10 @@ Make sure to record strikes you recieve with the `strike` command; some solution
 
         Examples:
         
-        A red wire, a blue wire with a light, a yellow wire with a star, a blue-green striped wire, and a white wire with a star and a light: `complexwires R, LB, *Y, BG, *LW`
-        a blue-white striped wire with a star and a light, a green wire with a light, a blue wire with a light, and a green wire with a star: `complexwires *LBW, LG, BL, *G`""",
+        A red wire, a blue wire with a light, a yellow wire with a star, a blue-green striped wire, and a white wire with a star and a light: `complexwires R LB *Y BG *LW`
+        a blue-white striped wire with a star and a light, a green wire with a light, a blue wire with a light, and a green wire with a star: `complexwires *LBW LG BL *G`""",
         function(args...; rawargs="")
-            codes = map(uppercase ∘ strip ∘ string, split(rawargs, ","; keepempty=false))
+            codes = map(uppercase, split(rawargs))
             wirecoderegexp = r"^(?<star>\*?)(?<light>L?)(?<color>[BGRYWK]{1,2})$"
             matches = map(curry(match, wirecoderegexp), codes)
 
@@ -718,7 +719,6 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             if isempty(cuts)
                 println("Don't cut any wires...? Try re-inputting the codes again.")
             else
-                numbernames = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eight", "ninth", "tenth"]
                 println("Cut the $(conjuncted_list(numbernames[cuts])) wire(s).")
             end
 
@@ -733,7 +733,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
 
         For each panel, the program will ask you for a series of codes describing each wire, and where it is connected to. Input the correct codes for the current panel, cut the wires that the program tells you to cut, proceed to the next panel, and input the next panel's wires.
         
-        When writing wire codes, write a comma-separated list with each code in this pattern:
+        When writing wire codes, write a space-separated list with each code in this pattern:
 
             <number><color code><letter>
 
@@ -768,7 +768,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                     print("Panel $panel configuration: ")
                     rawstr = uppercase(clean(readline()))
                     isempty(rawstr) && continue
-                    codes = map(strip ∘ string, split(rawstr, ","; keepempty=false))
+                    codes = split(rawstr)
                     badcode = findfirst(c -> !occursin(wirecoderegexp, c), codes)
                     if badcode !== nothing
                         println("Wire code $(codes[badcode]) is invalid.")
@@ -802,6 +802,82 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                     println("Cut the $(conjuncted_list(cut_list)) wire(s)$proceed.")
                 end
             end
+        end
+    ),
+    Command(
+        ["maze"],
+        [String, String, String, String],
+        4,
+        """Solves the maze module.
+        Usage: maze <marker 1 coords> <marker 2 coords> <your coords> <goal coords>
+        
+        Input the coordinates as a comma-separated pair of x-y coordinates without a space after the comma, starting from 1,1 at the bottom left coordinate of the maze, and going up to 6,6 at the top right.
+        
+        Examples:
+        
+        You see a grid with a marker in the 2nd row and first column, a marker in the 3rd row and 6th column, your position is in the 4th row & 2nd column, and the goal position is the 5th row & 5th column: `maze 2,1 3,6 4,2 5,5`""",
+        function(marker1, marker2, pos, goal)
+            mazecoordregexp = r"(?<x>\d),(?<y>\d)"
+            codes = [marker1, marker2, pos, goal]
+            if (badcode = findfirst(c -> !occursin(mazecoordregexp, c), codes)) !== nothing
+                println("$(coords[badcode]) is an invalid coordinate, please re-enter the command.")
+                return
+            end
+
+            coords = map(codes) do code
+                m = match(mazecoordregexp, code)
+                x = parse(Int, m[:x])
+                y = parse(Int, m[:y])
+                (x, y)
+            end
+
+            if (badcoord = findfirst(c -> c .∉ (1:6,), coords)) !== nothing
+                println("$(coords[badcoord]) is out of bounds, grid coordinates can only be between 1-6.")
+                return
+            end
+
+            """
+            ╔╦═╗
+            ║║ ║
+            ╠╬═╣
+            ╚╩═╝
+            """
+
+            mazes = [
+                ("""
+                ╔═╗╔═╕
+                ║╔╝╚═╗
+                ║╚╗╔═╣
+                ║╒╩╝╒╣
+                ╠═╗╔╕║
+                ╚╕╚╝╒╝
+                """, Set([(1,5), (6,4)])),
+                ("""
+                ╒╦╕╔╦╕
+                ╔╝
+                """, Set([(2,3), (5,5)])),
+                ([
+
+                ], Set([(4,3), (6,3)])),
+                ([
+
+                ], Set([(1,3), (1,6)])),
+                ([
+
+                ], Set([(4,1), (5,4)])),
+                ([
+
+                ], Set([(3,2), (5,6)])),
+                ([
+
+                ], Set([(2,1), (2,6)])),
+                ([
+
+                ], Set([(3,3), (4,6)])),
+                ([
+
+                ], Set([(1,2), (3,5)])),
+            ]
         end
     )
 ])
