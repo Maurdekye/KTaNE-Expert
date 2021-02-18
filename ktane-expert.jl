@@ -82,6 +82,7 @@ Type `commands` for a list of commands, or `help` for a short guide on how to us
 """
 
 numbernames = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eight", "ninth", "tenth"]
+numberwords = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
 
 bomb = Bomb()
 qcodes = Dict(
@@ -685,6 +686,8 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         A red wire, a blue wire with a light, a yellow wire with a star, a blue-green striped wire, and a white wire with a star and a light: `complexwires R LB *Y BG *LW`
         a blue-white striped wire with a star and a light, a green wire with a light, a blue wire with a light, and a green wire with a star: `complexwires *LBW LG BL *G`""",
         function(args...; rawargs="")
+
+            # validate input
             codes = map(uppercase, split(rawargs))
             wirecoderegexp = r"^(?<star>\*?)(?<light>L?)(?<color>[BGRYWK]{1,2})$"
             matches = map(curry(match, wirecoderegexp), codes)
@@ -695,6 +698,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 return
             end
 
+            # determine the action to take for each wire
             decision_matrix = fill(:D, 2, 2, 2, 2)
             decision_matrix[:, :, 1, 1] = [:D :P; :B :B]
             decision_matrix[:, :, 2, 1] = [:S :P; :B :D]
@@ -726,6 +730,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
 
             end
 
+            # display list of cuts to make
             if isempty(cuts)
                 println("Don't cut any wires...? Try re-inputting the codes again.")
             else
@@ -773,6 +778,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             for panel in 1:num_panels
                 wirecoderegexp = r"^(?<number>\d+)(?<color>[BRK])(?<letter>[ABC])$"
 
+                # recieve & validate input for current panel
                 matchlist = undef
                 while true
                     print("Panel $panel configuration: ")
@@ -788,6 +794,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                     break
                 end
 
+                # sort & translate to internal format
                 wires = map(matchlist) do m
                     number = parse(Int, m[:number])
                     color = Dict("R" => :red, "B" => :blue, "K" => :black)[m[:color]]
@@ -795,6 +802,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                     (number, color, letter)
                 end
 
+                # process, in order, each wire, and determine whether to cut each one
                 tocut = Vector{Tuple{Int,Symbol,Symbol}}()
                 for (number, color, letter) in sort(wires, by=(t -> t[1]))
                     wire_counts[color] += 1
@@ -803,6 +811,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                     end
                 end
 
+                # give output
                 proceed = panel == num_panels ? "" : ", and proceed to the next panel"
 
                 if isempty(tocut)
@@ -1013,11 +1022,29 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             end
             pathstr = join(pathstr_rows, "\n")
 
+            grouped_instructions = reduce(path_instructions; init=[[]]) do groups, dir
+                if isempty(groups[end]) || groups[end][end] == dir
+                    [groups[1:end-1]; [[groups[end]; [dir]]]]
+                else
+                    [groups; [[dir]]]
+                end
+            end
+
+            compressed_instruction_list = map(grouped_instructions) do instr_list
+                if length(instr_list) == 1
+                    "$(instr_list[1])"
+                elseif length(instr_list) == 2
+                    "$(instr_list[1]) twice"
+                else
+                    "$(instr_list[1]) $(numberwords[length(instr_list)]) times"
+                end
+            end
+
             # display result
 
             println("Take this path through the grid:")
             println(pathstr)
-            println("Or equivalently, follow these instructions: $(join(map(string, path_instructions), ", ")).")
+            println("Or equivalently, follow these instructions: $(join(compressed_instruction_list, ", ")).")
         end
     )
 ])
