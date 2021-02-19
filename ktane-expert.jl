@@ -272,6 +272,8 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         Yellow button with the word 'detonate' written on it: `button yellow detonate`
         White button with the word 'abort': `button white abort`""",
         function(color, label)
+
+            # determine if button needs to be held
             hold = undef
             if color == "blue" && label == "abort"
                 hold = true
@@ -289,6 +291,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 hold = true
             end
 
+            # give held button instructions if button needs to be held
             if hold
                 println("Press and hold the button, and type in the color of the indicator light that appears;")
                 lightcolor = textprompt("|")
@@ -360,6 +363,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 ["DT", "ED", "PZ", "AE", "PSI", "RN", "OM"]
             ]
 
+            # validate input
             given = map(uppercase, [s1, s2, s3, s4])
             badcode = findfirst(code -> code ∉ symbol_list, given)
             if badcode !== nothing
@@ -367,6 +371,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 return
             end
 
+            # find correct column & order of symbols
             right_col_ind = findfirst(col -> all(symb in col for symb in given), symbol_columns)
             if right_col_ind === nothing
                 println("No solution was found... did you type the right codes in?")
@@ -376,6 +381,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             right_col = symbol_columns[right_col_ind]
             correct_order = sort(given, by=indexof(right_col))
 
+            # print solution
             println("The correct order to push the buttons in is $(conjuncted_list(correct_order)).")
         end
     ),
@@ -400,6 +406,8 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         Flashes green: `simon G`
         Flashes green, yellow, green, blue: `simon GYGB`""",
         function(sequence)
+
+            # validate input
             if bomb[qcodes["strikes"]] ≥ 3
                 println("You already exploded!")
                 return
@@ -411,6 +419,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 return
             end
 
+            # find correct mapping & press order
             header = ['R', 'B', 'G', 'Y']
 
             translation_table = Dict(
@@ -437,6 +446,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             translation = translation_table[bomb[qcodes["strikes"]]+1][indicies]
             solution_response = map(c -> names[c], translation)
 
+            # print order
             println("Press the buttons in this order: $(join(solution_response, ", ")).")
         end
     ),
@@ -494,6 +504,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 :bottom_right => "bottom right",
             )
 
+            # validate input
             if word ∉ keys(display_words)
                 println("Word not recognized; did you type it in properly?")
                 return
@@ -538,8 +549,10 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                28 => [20, 15, 19, 23, 18, 21, 25, 27, 28, 24, 26, 22, 16, 17],
             )
 
+            # get word on indicated button
             button_word = uppercase(textprompt("What is the word on the $(location_names[location]) button?"; choices = lowercase.(step_2_word_list)))
             
+            # list words in associated list until one is found
             for step_2_word_index in cycle(step_2_word_relations[indexof(step_2_word_list, button_word)])
                 step_2_word = step_2_word_list[step_2_word_index]
                 print("Is there a button with the word '$step_2_word' on it? (leave blank for no) ")
@@ -561,8 +574,10 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             memory = Vector{NTuple{2,Union{Int,UndefInitializer}}}([(undef, undef) for i in 1:5])
 
             for stage in 1:5
+                # take input
                 display = parse(Int, textprompt("Stage $stage: what number is shown on the display?"; choices = ["1", "2", "3", "4"]))
 
+                # determine button to press
                 position, label = [
                     (2, undef)            (2, undef)            (3, undef)            (4, undef)           ;
                     (undef, 4)            (memory[1][1], undef) (1, undef)            (memory[1][1], undef);
@@ -571,6 +586,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                     (undef, memory[1][2]) (undef, memory[2][2]) (undef, memory[4][2]) (undef, memory[3][2]);
                 ][stage, display]
 
+                # relay information about button to press, and take additional information about the button's attributes
                 if position === undef
                     println("Press the button labeled $label.")
                     stage < 5 && (position = parse(Int, textprompt("What position was that button in?"; choices = ["1", "2", "3", "4"])))
@@ -645,6 +661,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 "beats"  => 3.600,
             )
 
+            # find the most similar code in a known library of codes
             morse_words = Dict(join(map(l -> morse_dictionary[l], collect(word))) => word for word in keys(word_frequencies))
             morse_in = filter(in(".-"), rawargs)
             matches = dictmap(word_similarity(morse_in), collect(keys(morse_words)))
@@ -652,9 +669,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             single_best = length(filter(m -> m.second == score, matches)) == 1
             frequency = word_frequencies[morse_words[code]]
 
-            # display(sort(collect(matches), by=(p -> p.second)))
-            # println()
-
+            # display relevant message depending on how close the passed code was to the most similar code
             if score == 0
                 println("Set the radio frequency to $frequency MHz, and press TX.")
             elseif score in 1:2 && single_best
