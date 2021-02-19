@@ -1121,12 +1121,6 @@ Make sure to record strikes you recieve with the `strike` command; some solution
 ])
 
 function main()
-    # bomb[qcodes["serial_vowel"]] = false
-    # findcommand("simon", ktane_commandlist).action("RGBY")
-    # findcommand("morse", ktane_commandlist).action("")
-    # similarcommands("strial", ktane_commandlist)
-    # findcommand("cwires", ktane_commandlist).action("", rawargs="B, Y, R, G")
-    # findcommand("maze", ktane_commandlist).action("1,5", "6,4", "5,2", "5,1")
     println(introtext)
     repl(ktane_commandlist)
     println("Goodbye.")
