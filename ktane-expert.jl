@@ -791,9 +791,9 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             )
 
             for panel in 1:num_panels
-                wirecoderegexp = r"^(?<number>\d+)(?<color>[BRK])(?<letter>[ABC])$"
 
                 # recieve & validate input for current panel
+                wirecoderegexp = r"^(?<number>\d+)(?<color>[BRK])(?<letter>[ABC])$"
                 matchlist = undef
                 while true
                     print("Panel $panel configuration: ")
@@ -851,8 +851,8 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         
         You see a grid with a marker in the 2nd row and first column, a marker in the 3rd row and 6th column, your position is in the 4th row & 2nd column, and the goal position is the 5th row & 5th column: `maze 2,1 3,6 4,2 5,5`""",
         function(marker1, marker2, pos, goal)
-            # validate input
 
+            # validate input
             mazecoordregexp = r"(?<x>\d),(?<y>\d)"
             codes = [marker1, marker2, pos, goal]
             if (badcode = findfirst(c -> !occursin(mazecoordregexp, c), codes)) !== nothing
@@ -873,7 +873,6 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             end
 
             # determine maze based off markers
-
             mazes = Dict(
                 Set([(1,5), (6,4)]) => """
                 ╔═╗╔═╕
@@ -991,8 +990,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             mazestr = mazes[marker]
             maze = map(piece_directions, hcat(collect.(split(strip(mazestr), "\n"))...)')
 
-            # solve maze via depth-first flood fill search
-
+            # solve maze via depth-first flood search
             fringe = [[self]]
             soln_path = undef
             while !isempty(fringe)
@@ -1013,7 +1011,6 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             end
 
             # construct outputs
-
             pathstr_grid = fill('.', 6, 6)
             pathstr_grid[self...] = '*'
             pathstr_grid[goal...] = 'Δ'
@@ -1026,6 +1023,8 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 path_piece = reverselookup(piece_directions, Set(dirs))
                 pathstr_grid[pos...] = path_piece
             end
+
+            ## finalize grid path output
             pathstr_rows = map(eachrow(pathstr_grid)) do row
                 newrow = collect(join(row, ' '))
                 for i in 2:2:10
@@ -1037,6 +1036,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             end
             pathstr = join(pathstr_rows, "\n")
 
+            ## finalize instruction list output
             grouped_instructions = reduce(path_instructions; init=[[]]) do groups, dir
                 if isempty(groups[end]) || groups[end][end] == dir
                     [groups[1:end-1]; [[groups[end]; [dir]]]]
@@ -1056,10 +1056,66 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             end
 
             # display result
-
             println("Take this path through the grid:")
             println(pathstr)
             println("Or equivalently, follow these instructions: $(join(compressed_instruction_list, ", ")).")
+        end
+    ),
+    Command(
+        ["password"],
+        [String],
+        1,
+        """Solves the password module.
+        Usage: password <list of characters in first letter>
+
+        Supply the list of characters selectable as the first letter of the password. The program may ask for additional letters as needed, and will give you the password
+        once it is certain what it is.
+
+        Example:
+
+        The first letter of the password has the letters E, N, S, T, and F selectable: `password ENSTF`""",
+        function(firstletter)
+
+            passwords = [
+                "about", "after", "again", "below", "could", "every", "first", "found", "great", "house",
+                "large", "learn", "never", "other", "place", "plant", "point", "right", "small", "sound",
+                "spell", "still", "study", "their", "there", "these", "thing", "think", "three", "water",
+                "where", "which", "world", "would", "write"
+            ]
+
+            for i in 1:5
+                letter_choices = undef
+                
+                while true
+                    # take input
+                    if i == 1
+                        letter_choices = firstletter
+                    else
+                        print("Input the letter choices for the $(numbernames[i]) letter of the password: ")
+                        letter_choices = readline()
+                    end
+
+                    # validate input
+                    if !occursin(r"^[a-z]{5}$", letter_choices)
+                        println("Passwords can only contain the letters A-Z, and there are only ever 5 options per letter.")
+                        i == 1 && return
+                        continue
+                    end
+                    break
+                end
+
+                # narrow down password choices
+                passwords = filter(p -> p[i] in letter_choices, passwords)
+
+                # print out the correct password if found
+                if isempty(passwords)
+                    println("No passwords matched, did you type the wrong letters in?")
+                    return
+                elseif length(passwords) == 1
+                    println("The password is $(passwords[1]).")
+                    return
+                end
+            end
         end
     )
 ])
