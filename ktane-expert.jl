@@ -133,7 +133,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
             for (key, val) in bomb.memodict
                 valstr = string(val)
                 isa(key, BooleanQuestion) && (valstr = val ? "Yes" : "No")
-                println("$key: $val")
+                println("$(key.question): $val")
             end
         end
     ),
