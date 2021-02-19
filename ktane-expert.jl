@@ -113,7 +113,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
         Usage: reset""",
         function()
             if yesnoprompt("Are you sure you want to reset?")
-                bomb = Bomb()
+                bomb.memodict = Dict()
                 bomb[qcodes["strikes"]] = 0
                 println("Memory reset.")
             else
@@ -832,7 +832,7 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                 if isempty(tocut)
                     println("Cut none of the wires$proceed.")
                 else
-                    cut_list = map((n, _, l) -> "$n - $l")
+                    cut_list = map(t -> "$(t[1]) - $(t[3])", tocut)
                     println("Cut the $(conjuncted_list(cut_list)) wire(s)$proceed.")
                 end
             end
@@ -1096,8 +1096,8 @@ Make sure to record strikes you recieve with the `strike` command; some solution
                     end
 
                     # validate input
-                    if !occursin(r"^[a-z]{5}$", letter_choices)
-                        println("Passwords can only contain the letters A-Z, and there are only ever 5 options per letter.")
+                    if !occursin(r"^[a-z]+$", letter_choices)
+                        println("Passwords can only contain the letters A-Z.")
                         i == 1 && return
                         continue
                     end
